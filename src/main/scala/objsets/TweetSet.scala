@@ -42,7 +42,7 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
     def filter(p: Tweet => Boolean): TweetSet = filterAcc(p, new Empty)
-  
+
   /**
    * This is a helper method for `filter` that propagetes the accumulated tweets.
    */
@@ -55,7 +55,7 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
     def union(that: TweetSet): TweetSet
-  
+
   /**
    * Returns the tweet from this set which has the greatest retweet count.
    *
@@ -66,7 +66,7 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
     def mostRetweeted: Tweet
-  
+
   /**
    * Returns a list containing all tweets of this set, sorted by retweet count
    * in descending order. In other words, the head of the resulting list should
@@ -77,7 +77,7 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
     def descendingByRetweet: TweetList
-  
+
   /**
    * The following methods are already implemented
    */
@@ -95,6 +95,7 @@ abstract class TweetSet {
    */
   def remove(tweet: Tweet): TweetSet
 
+
   /**
    * Tests if `tweet` exists in this `TweetSet`.
    */
@@ -107,6 +108,7 @@ abstract class TweetSet {
 }
 
 class Empty extends TweetSet {
+
   def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = acc
 
   def union(other: TweetSet): TweetSet = other
@@ -131,26 +133,39 @@ class Empty extends TweetSet {
 class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
 
   def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = {
-    if ( p(elem) ) left.filterAcc(p, right.filterAcc(p, acc incl elem))
-    else left.filterAcc(p, right.filterAcc(p, acc))
+    if ( p(elem) ) {
+      left.filterAcc(p, right.filterAcc(p, acc incl elem)) // we must include elem in our new Tweetset
+    } else {
+      left.filterAcc(p, right.filterAcc(p, acc))
+    }
   }
 
   def union(other: TweetSet): TweetSet = {
-    ((left union right) union other) incl elem
+    (left union (right union other)) incl elem // taking left associative does not work for some reason here
   }
 
   def mostRetweeted: Tweet = {
-    val l = left.mostRetweeted
-    val r = right.mostRetweeted
-    val leftMax = l.retweets
-    val rightMax = r.retweets
-    val currElem = elem.retweets
+    lazy val l = left.mostRetweeted
+    lazy val r = right.mostRetweeted
 
-    (currElem compareTo leftMax, currElem compareTo rightMax, leftMax compareTo rightMax) match {
-      case (1, 1, _) => elem
-      case (-1, _, 1) => l
-      case (_, -1, -1) => r
-      case (0, 0, _) => elem
+    (left, right) match {
+      case (_: Empty, _: Empty) => elem
+      case (_: NonEmpty, _: Empty) => if (l.retweets > elem.retweets) l else elem
+      case (_: Empty, _: NonEmpty) => if (r.retweets > elem.retweets) r else elem
+      case (_: NonEmpty, _: NonEmpty) => {
+        val leftCount = l.retweets
+        val rightCount = r.retweets
+        val currElem = elem.retweets
+        (currElem compareTo leftCount, currElem compareTo rightCount, leftCount compareTo rightCount) match {
+          case (1, 1, _) => elem
+          case (-1, _, 1) => l
+          case (_, -1, -1) => r
+          case (0, 0, _) => elem
+          case (1, 0, _) => r
+          case (0, 1, _) => l
+          case (-1, -1, 0) => r
+        }
+      }
     }
   }
 
@@ -214,7 +229,7 @@ object GoogleVsApple {
 
   lazy val googleTweets: TweetSet = TweetReader.allTweets.filter(tweet => google.exists(tweet.text.contains))
   lazy val appleTweets: TweetSet = TweetReader.allTweets.filter(tweet => apple.exists(tweet.text.contains))
-  
+
   /**
    * A list of all tweets mentioning a keyword from either apple or google,
    * sorted by the number of retweets.
