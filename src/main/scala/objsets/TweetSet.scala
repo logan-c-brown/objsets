@@ -151,7 +151,6 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
       case (-1, _, 1) => l
       case (_, -1, -1) => r
       case (0, 0, _) => elem
-      case (_, 0, 0) => elem
     }
   }
 
